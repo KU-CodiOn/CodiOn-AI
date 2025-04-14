@@ -1,0 +1,10 @@
+오류 발생 시간: 2025-04-05 14:12:02.601778
+오류 메시지: 피처 파일을 찾을 수 없습니다: dataset/skin_features\features.csv
+
+Traceback (most recent call last):
+  File "C:\Users\iksun\.Programming\Project\personalColor\dual_input_model.py", line 462, in main
+    features_data = load_feature_data(FEATURES_DATA_DIR)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\iksun\.Programming\Project\personalColor\dual_input_model.py", line 51, in load_feature_data
+    raise FileNotFoundError(f"피처 파일을 찾을 수 없습니다: {csv_file}")
+FileNotFoundError: 피처 파일을 찾을 수 없습니다: dataset/skin_features\features.csv
