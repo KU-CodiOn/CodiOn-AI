@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>의류 분석 테스트</title>
+    <title>퍼스널컬러 분석 테스트</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -98,11 +98,24 @@
         .result-item strong {
             color: #333;
         }
+        .accuracy-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        .accuracy-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>의류 분석 테스트</h1>
+        <h1>퍼스널컬러 분석 테스트</h1>
         
         <form id="uploadForm" enctype="multipart/form-data">
             <div class="upload-section">
@@ -168,7 +181,7 @@
                 const formData = new FormData();
                 formData.append('file', file);
 
-                const response = await fetch('/analyze/fashion/upload', {
+                const response = await fetch('/analyze/personal-color/upload', {
                     method: 'POST',
                     body: formData
                 });
@@ -185,13 +198,16 @@
                         const jsonResult = JSON.parse(data.result);
                         analysisResult.innerHTML = `
                             <div class="result-item">
-                                <strong>카테고리:</strong> ${jsonResult['카테고리']}
-                            </div>
-                            <div class="result-item">
                                 <strong>퍼스널컬러:</strong> ${jsonResult['퍼스널컬러']}
                             </div>
                             <div class="result-item">
-                                <strong>주요색상:</strong> ${jsonResult['주요색상']}
+                                <strong>정확도:</strong> ${jsonResult['정확도']}%
+                                <div class="accuracy-bar">
+                                    <div class="accuracy-fill" style="width: ${jsonResult['정확도']}%"></div>
+                                </div>
+                            </div>
+                            <div class="result-item">
+                                <strong>설명:</strong> ${jsonResult['설명']}
                             </div>
                         `;
                     } catch (e) {

@@ -58,6 +58,8 @@ myenv/
 
 # Environment variables
 .env
+.env.local
+.env.*.local
 
 # Uploads
 uploads/
@@ -239,3 +241,46 @@ poetry.toml
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Large files
+*.dat
+*.bin
+*.zip
+*.tar.gz
+*.rar
+
+# Test files
+test_*.py
+*_test.py
+*.test.py
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Local development
+local_settings.py
+*.local.py
+
+# System files
+.DS_Store
+Thumbs.db
+
+# AWS
+*.pem
+*.crt
+*.key
+*.pfx
+*.p12
+*.cer
