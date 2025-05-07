@@ -18,6 +18,7 @@ import cv2
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
+import requests
 
 # 환경 변수 로드
 load_dotenv()
@@ -258,6 +259,80 @@ async def analyze_personal_color_upload(file: UploadFile = File(...)):
 async def read_personal_color():
     """퍼스널컬러 분석 테스트 페이지"""
     return FileResponse("static/personal-color.html")
+
+@app.post("/analyze/personal-color/url")
+async def analyze_personal_color_url(image_url: str):
+    try:
+        # URL에서 이미지 다운로드
+        response = requests.get(image_url)
+        if response.status_code != 200:
+            raise HTTPException(status_code=400, detail="이미지를 다운로드할 수 없습니다.")
+        
+        # 이미지를 numpy 배열로 변환
+        nparr = np.frombuffer(response.content, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            raise HTTPException(status_code=400, detail="이미지를 처리할 수 없습니다.")
+        
+        # 퍼스널컬러 예측
+        personal_color, accuracy = predict_personal_color(img)
+        
+        # 결과 생성
+        result = {
+            "퍼스널컬러": personal_color,
+            "설명": f"피부톤과 얼굴 특성을 분석한 결과 {personal_color}로 판단됩니다.",
+            "정확도": accuracy
+        }
+        
+        return {"result": json.dumps(result, ensure_ascii=False)}
+        
+    except Exception as e:
+        error_detail = str(e)
+        logger.error(f"이미지 URL 분석 중 오류 발생: {error_detail}")
+        raise HTTPException(
+            status_code=500,
+            detail=error_detail
+        )
+
+@app.post("/analyze/fashion/url")
+async def analyze_fashion_url(image_url: str):
+    try:
+        # GPT Vision API로 분석
+        response = client.chat.completions.create(
+            model="gpt-4-vision-preview",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "이미지의 의류를 분석해주세요. 다음 형식의 JSON으로만 응답해주세요:\n{\n  \"카테고리\": \"상의/아우터/바지/원피스/스커트 중 하나\",\n  \"퍼스널컬러\": \"봄웜/여름쿨/가을웜/겨울쿨 중 하나\",\n  \"주요색상\": \"하나의 색상명\"\n}\n\n주의사항:\n1. 카테고리는 주어진 5개 중 하나만 선택\n2. 퍼스널컬러는 주어진 4개 중 하나만 선택\n3. 주요색상은 하나의 색상만 선택\n4. 다른 설명이나 추가 정보는 포함하지 마세요"
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image_url
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=300
+        )
+        
+        # 분석 결과 반환
+        return {"result": response.choices[0].message.content}
+        
+    except Exception as e:
+        error_detail = str(e)
+        if "model_not_found" in error_detail:
+            error_detail = "GPT-4 Vision 모델이 더 이상 사용되지 않습니다. 최신 모델로 업데이트가 필요합니다."
+        logger.error(f"이미지 URL 분석 중 오류 발생: {error_detail}")
+        raise HTTPException(
+            status_code=500,
+            detail=error_detail
+        )
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True) 
