@@ -19,6 +19,8 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 import requests
+from pydantic import BaseModel, Field, HttpUrl
+from typing import Optional, Dict, Any
 
 # 환경 변수 로드
 load_dotenv()
@@ -36,9 +38,11 @@ logger = logging.getLogger("fashion-api")
 
 # FastAPI 앱 생성
 app = FastAPI(
-    title="Fashion Analysis API",
-    description="의류 분석을 위한 API 서버",
-    version="1.0.0"
+    title="퍼스널컬러 및 의류 분석 API",
+    description="퍼스널컬러 분석 및 의류 분석을 위한 API 서버",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 # CORS 미들웨어 설정
@@ -175,8 +179,26 @@ async def analyze_fashion(image_url: str) -> dict:
         logger.error(f"분석 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/analyze/fashion/upload")
+# Pydantic 모델 정의
+class ImageUrlInput(BaseModel):
+    image_url: HttpUrl = Field(..., description="분석할 이미지의 URL")
+    
+class PersonalColorResponse(BaseModel):
+    result: str = Field(..., description="퍼스널컬러 분석 결과 (JSON 문자열)")
+    
+class FashionAnalysisResponse(BaseModel):
+    result: str = Field(..., description="의류 분석 결과 (JSON 문자열)")
+
+@app.post("/analyze/fashion/upload", response_model=FashionAnalysisResponse, tags=["의류 분석"], summary="파일 업로드를 통한 의류 분석")
 async def analyze_fashion_upload(file: UploadFile = File(...)):
+    """
+    업로드된 이미지 파일을 분석하여 의류 정보를 반환합니다.
+    
+    - **file**: 분석할 의류 이미지 파일
+    
+    **반환값**:
+    - 의류 카테고리, 퍼스널컬러, 주요 색상 정보
+    """
     try:
         # 이미지를 메모리에 저장
         contents = await file.read()
@@ -220,13 +242,21 @@ async def analyze_fashion_upload(file: UploadFile = File(...)):
             detail=error_detail
         )
 
-@app.get("/fashion", response_class=HTMLResponse)
+@app.get("/fashion", response_class=HTMLResponse, tags=["의류 분석"], summary="의류 분석 테스트 페이지")
 async def read_fashion():
-    """의류 분석 테스트 페이지"""
+    """의류 분석 테스트를 위한 HTML 페이지를 제공합니다."""
     return FileResponse("static/fashion.html")
 
-@app.post("/analyze/personal-color/upload")
+@app.post("/analyze/personal-color/upload", response_model=PersonalColorResponse, tags=["퍼스널컬러 분석"], summary="파일 업로드를 통한 퍼스널컬러 분석")
 async def analyze_personal_color_upload(file: UploadFile = File(...)):
+    """
+    업로드된 얼굴 이미지 파일을 분석하여 퍼스널컬러 정보를 반환합니다.
+    
+    - **file**: 분석할 얼굴 이미지 파일
+    
+    **반환값**:
+    - 퍼스널컬러 유형, 설명, 정확도
+    """
     try:
         # 이미지를 메모리에 저장
         contents = await file.read()
@@ -255,16 +285,24 @@ async def analyze_personal_color_upload(file: UploadFile = File(...)):
             detail=error_detail
         )
 
-@app.get("/personal-color", response_class=HTMLResponse)
+@app.get("/personal-color", response_class=HTMLResponse, tags=["퍼스널컬러 분석"], summary="퍼스널컬러 분석 테스트 페이지")
 async def read_personal_color():
-    """퍼스널컬러 분석 테스트 페이지"""
+    """퍼스널컬러 분석 테스트를 위한 HTML 페이지를 제공합니다."""
     return FileResponse("static/personal-color.html")
 
-@app.post("/analyze/personal-color/url")
-async def analyze_personal_color_url(image_url: str):
+@app.post("/analyze/personal-color/url", response_model=PersonalColorResponse, tags=["퍼스널컬러 분석"], summary="URL을 통한 퍼스널컬러 분석")
+async def analyze_personal_color_url(image_url_input: ImageUrlInput):
+    """
+    URL로 제공된 얼굴 이미지를 분석하여 퍼스널컬러 정보를 반환합니다.
+    
+    - **image_url_input**: 분석할 이미지의 URL
+    
+    **반환값**:
+    - 퍼스널컬러 유형, 설명, 정확도
+    """
     try:
         # URL에서 이미지 다운로드
-        response = requests.get(image_url)
+        response = requests.get(image_url_input.image_url)
         if response.status_code != 200:
             raise HTTPException(status_code=400, detail="이미지를 다운로드할 수 없습니다.")
         
@@ -295,8 +333,16 @@ async def analyze_personal_color_url(image_url: str):
             detail=error_detail
         )
 
-@app.post("/analyze/fashion/url")
-async def analyze_fashion_url(image_url: str):
+@app.post("/analyze/fashion/url", response_model=FashionAnalysisResponse, tags=["의류 분석"], summary="URL을 통한 의류 분석")
+async def analyze_fashion_url(image_url_input: ImageUrlInput):
+    """
+    URL로 제공된 의류 이미지를 분석하여 의류 정보를 반환합니다.
+    
+    - **image_url_input**: 분석할 이미지의 URL
+    
+    **반환값**:
+    - 의류 카테고리, 퍼스널컬러, 주요 색상 정보
+    """
     try:
         # GPT Vision API로 분석
         response = client.chat.completions.create(
@@ -312,7 +358,7 @@ async def analyze_fashion_url(image_url: str):
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": image_url
+                                "url": image_url_input.image_url
                             }
                         }
                     ]
