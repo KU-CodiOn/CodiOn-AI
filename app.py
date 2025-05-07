@@ -69,10 +69,20 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # 모델 로드
 MODEL_PATH = "models/face_model_mobilenet_20250405_121601"
-model = load_model(os.path.join(MODEL_PATH, "final_model.h5"))
+model_file = os.path.join(MODEL_PATH, "final_model.h5")
+indices_file = os.path.join(MODEL_PATH, "class_indices.txt")
+
+# 모델 파일이 없으면 다운로드 시도
+if not os.path.exists(model_file) or not os.path.exists(indices_file):
+    logger.info("모델 파일이 없습니다. S3에서 다운로드를 시도합니다.")
+    from download_models import download_models_from_s3
+    download_models_from_s3()
+
+# 모델과 클래스 인덱스 로드
+model = load_model(model_file)
 
 # 클래스 인덱스 로드
-with open(os.path.join(MODEL_PATH, "class_indices.txt"), "r") as f:
+with open(indices_file, "r") as f:
     class_indices = {i: line.strip() for i, line in enumerate(f.readlines())}
 
 def preprocess_image(img):

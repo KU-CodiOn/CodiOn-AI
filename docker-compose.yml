@@ -1,0 +1,31 @@
+version: '3'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./static:/app/static
+      - ./uploads:/app/uploads
+    restart: always
+    # S3에서 모델 자동 다운로드. 필요 없을 경우 아래 볼륨 주석 해제
+    # volumes:
+    #   - ./models:/app/models
+    #   - ./static:/app/static
+    #   - ./uploads:/app/uploads
+  
+  # 선택적으로 nginx 추가
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx_config:/etc/nginx/conf.d/default.conf
+      - ./static:/usr/share/nginx/html/static
+    depends_on:
+      - app
+    restart: always 

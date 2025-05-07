@@ -1,0 +1,29 @@
+# Elastic Beanstalk 설정 파일 (.ebextensions/01_setup.config)
+
+option_settings:
+  aws:elasticbeanstalk:container:python:
+    WSGIPath: app:app
+  aws:elasticbeanstalk:application:environment:
+    PYTHONPATH: "/var/app/current"
+  aws:elasticbeanstalk:environment:proxy:staticfiles:
+    /static: static
+
+packages:
+  yum:
+    gcc: []
+    python3-devel: []
+    libtiff-devel: []
+    libjpeg-devel: []
+    libzip-devel: []
+    freetype-devel: []
+    lcms2-devel: []
+    libwebp-devel: []
+    openjpeg2-devel: []
+
+container_commands:
+  01_pip_upgrade:
+    command: "pip install --upgrade pip"
+  02_install_requirements:
+    command: "pip install -r requirements.txt"
+  03_download_models:
+    command: "python download_models.py" 
