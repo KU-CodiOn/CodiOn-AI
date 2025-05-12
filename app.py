@@ -1,18 +1,13 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 import uvicorn
 import os
-import uuid
 import logging
-import base64
-from datetime import datetime
 from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 from dotenv import load_dotenv
 import json
-import boto3
-from botocore.exceptions import ClientError
 import numpy as np
 import cv2
 import tensorflow as tf
@@ -59,18 +54,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # OpenAI 클라이언트 초기화
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-
-# S3 클라이언트 초기화
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-    region_name=os.getenv("AWS_REGION")
-)
-
-# 이미지 업로드 디렉토리 생성
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # 모델 로드
 MODEL_PATH = "models/face_model_mobilenet_20250405_121601"
@@ -120,65 +103,6 @@ def predict_personal_color(img):
     
     return personal_color, accuracy
 
-def upload_to_s3(file_content: bytes, file_name: str) -> str:
-    """S3에 파일 업로드하고 URL 반환"""
-    try:
-        # 고유한 파일명 생성
-        unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4()}_{file_name}"
-        
-        # S3에 업로드
-        s3_client.put_object(
-            Bucket=os.getenv("S3_BUCKET_NAME"),
-            Key=unique_filename,
-            Body=file_content,
-            ContentType='image/jpeg'
-        )
-        
-        # URL 생성
-        url = f"https://{os.getenv('S3_BUCKET_NAME')}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/{unique_filename}"
-        
-        logger.info(f"S3 업로드 완료: {url}")
-        return url
-    except ClientError as e:
-        logger.error(f"S3 업로드 중 오류 발생: {str(e)}")
-        raise HTTPException(status_code=500, detail="S3 업로드 중 오류가 발생했습니다.")
-
-async def analyze_fashion(image_url: str) -> dict:
-    """GPT Vision API를 사용하여 의류 이미지 분석"""
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "이미지의 의류를 분석해주세요. 다음 형식의 JSON으로만 응답해주세요:\n{\n  \"카테고리\": \"상의/아우터/바지/원피스/스커트 중 하나\",\n  \"퍼스널컬러\": \"봄웜/여름쿨/가을웜/겨울쿨 중 하나\",\n  \"주요색상\": \"하나의 색상명\"\n}\n\n주의사항:\n1. 카테고리는 주어진 5개 중 하나만 선택\n2. 퍼스널컬러는 주어진 4개 중 하나만 선택\n3. 주요색상은 하나의 색상만 선택\n4. 다른 설명이나 추가 정보는 포함하지 마세요"
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": image_url
-                            }
-                        }
-                    ]
-                }
-            ],
-            max_tokens=300
-        )
-        
-        # 응답에서 JSON 부분 추출
-        content = response.choices[0].message.content
-        json_str = content.split("```json")[1].split("```")[0].strip()
-        result = json.loads(json_str)
-        
-        logger.info(f"분석 완료: {content}")
-        return result
-    except Exception as e:
-        logger.error(f"분석 중 오류 발생: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 # Pydantic 모델 정의
 class ImageUrlInput(BaseModel):
     image_url: HttpUrl = Field(..., description="분석할 이미지의 URL")
@@ -189,101 +113,10 @@ class PersonalColorResponse(BaseModel):
 class FashionAnalysisResponse(BaseModel):
     result: str = Field(..., description="의류 분석 결과 (JSON 문자열)")
 
-@app.post("/analyze/fashion/upload", response_model=FashionAnalysisResponse, tags=["의류 분석"], summary="파일 업로드를 통한 의류 분석")
-async def analyze_fashion_upload(file: UploadFile = File(...)):
-    """
-    업로드된 이미지 파일을 분석하여 의류 정보를 반환합니다.
-    
-    - **file**: 분석할 의류 이미지 파일
-    
-    **반환값**:
-    - 의류 카테고리, 퍼스널컬러, 주요 색상 정보
-    """
-    try:
-        # 이미지를 메모리에 저장
-        contents = await file.read()
-        
-        # 이미지를 base64로 인코딩
-        image_base64 = base64.b64encode(contents).decode('utf-8')
-        
-        # GPT Vision API로 분석
-        response = client.chat.completions.create(
-            model="gpt-4-turbo-vision-preview",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "이미지의 의류를 분석해주세요. 다음 형식의 JSON으로만 응답해주세요:\n{\n  \"카테고리\": \"상의/아우터/바지/원피스/스커트 중 하나\",\n  \"퍼스널컬러\": \"봄웜/여름쿨/가을웜/겨울쿨 중 하나\",\n  \"주요색상\": \"하나의 색상명\"\n}\n\n주의사항:\n1. 카테고리는 주어진 5개 중 하나만 선택\n2. 퍼스널컬러는 주어진 4개 중 하나만 선택\n3. 주요색상은 하나의 색상만 선택\n4. 다른 설명이나 추가 정보는 포함하지 마세요"
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
-                            }
-                        }
-                    ]
-                }
-            ],
-            max_tokens=300
-        )
-        
-        # 분석 결과 반환
-        return {"result": response.choices[0].message.content}
-        
-    except Exception as e:
-        error_detail = str(e)
-        if "model_not_found" in error_detail:
-            error_detail = "GPT-4 Vision 모델이 더 이상 사용되지 않습니다. 최신 모델로 업데이트가 필요합니다."
-        logger.error(f"이미지 업로드 분석 중 오류 발생: {error_detail}")
-        raise HTTPException(
-            status_code=500,
-            detail=error_detail
-        )
-
 @app.get("/fashion", response_class=HTMLResponse, tags=["의류 분석"], summary="의류 분석 테스트 페이지")
 async def read_fashion():
     """의류 분석 테스트를 위한 HTML 페이지를 제공합니다."""
     return FileResponse("static/fashion.html")
-
-@app.post("/analyze/personal-color/upload", response_model=PersonalColorResponse, tags=["퍼스널컬러 분석"], summary="파일 업로드를 통한 퍼스널컬러 분석")
-async def analyze_personal_color_upload(file: UploadFile = File(...)):
-    """
-    업로드된 얼굴 이미지 파일을 분석하여 퍼스널컬러 정보를 반환합니다.
-    
-    - **file**: 분석할 얼굴 이미지 파일
-    
-    **반환값**:
-    - 퍼스널컬러 유형, 설명, 정확도
-    """
-    try:
-        # 이미지를 메모리에 저장
-        contents = await file.read()
-        
-        # 이미지를 numpy 배열로 변환
-        nparr = np.frombuffer(contents, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
-        # 퍼스널컬러 예측
-        personal_color, accuracy = predict_personal_color(img)
-        
-        # 결과 생성
-        result = {
-            "퍼스널컬러": personal_color,
-            "설명": f"피부톤과 얼굴 특성을 분석한 결과 {personal_color}로 판단됩니다.",
-            "정확도": accuracy
-        }
-        
-        return {"result": json.dumps(result, ensure_ascii=False)}
-        
-    except Exception as e:
-        error_detail = str(e)
-        logger.error(f"퍼스널컬러 분석 중 오류 발생: {error_detail}")
-        raise HTTPException(
-            status_code=500,
-            detail=error_detail
-        )
 
 @app.get("/personal-color", response_class=HTMLResponse, tags=["퍼스널컬러 분석"], summary="퍼스널컬러 분석 테스트 페이지")
 async def read_personal_color():
@@ -350,37 +183,31 @@ async def analyze_fashion_url(image_url_input: ImageUrlInput):
         # URL을 문자열로 변환
         image_url_str = str(image_url_input.image_url)
         
-        # GPT Vision API로 분석
-        response = client.chat.completions.create(
-            model="gpt-4-turbo-vision-preview",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "이미지의 의류를 분석해주세요. 다음 형식의 JSON으로만 응답해주세요:\n{\n  \"카테고리\": \"상의/아우터/바지/원피스/스커트 중 하나\",\n  \"퍼스널컬러\": \"봄웜/여름쿨/가을웜/겨울쿨 중 하나\",\n  \"주요색상\": \"하나의 색상명\"\n}\n\n주의사항:\n1. 카테고리는 주어진 5개 중 하나만 선택\n2. 퍼스널컬러는 주어진 4개 중 하나만 선택\n3. 주요색상은 하나의 색상만 선택\n4. 다른 설명이나 추가 정보는 포함하지 마세요"
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": image_url_str
-                            }
-                        }
-                    ]
-                }
-            ],
-            max_tokens=300
+        # OpenAI API 요청
+        response = client.responses.create(
+            model="gpt-4.1-mini",
+            input=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": "이미지의 의류를 분석해주세요. 다음 형식의 JSON으로만 응답해주세요:\n{\n  \"카테고리\": \"상의/아우터/바지/원피스/스커트 중 하나\",\n  \"퍼스널컬러\": \"봄웜/여름쿨/가을웜/겨울쿨 중 하나\",\n  \"주요색상\": \"하나의 색상명\"\n}\n\n주의사항:\n1. 카테고리는 주어진 5개 중 하나만 선택\n2. 퍼스널컬러는 주어진 4개 중 하나만 선택\n3. 주요색상은 하나의 색상만 선택\n4. 다른 설명이나 추가 정보는 포함하지 마세요"
+                    },
+                    {
+                        "type": "input_image",
+                        "image_url": image_url_str
+                    }
+                ]
+            }]
         )
         
-        # 응답 내용을 문자열로 변환하여 반환
+        # 응답 파싱
         content = response.choices[0].message.content
+        
         return {"result": content}
         
     except Exception as e:
         error_detail = str(e)
-        if "model_not_found" in error_detail:
-            error_detail = "GPT-4 Vision 모델이 더 이상 사용되지 않습니다. 최신 모델로 업데이트가 필요합니다."
         logger.error(f"이미지 URL 분석 중 오류 발생: {error_detail}")
         raise HTTPException(
             status_code=500,
