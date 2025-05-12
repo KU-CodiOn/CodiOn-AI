@@ -147,14 +147,14 @@ async def analyze_fashion(image_url: str) -> dict:
     """GPT Vision API를 사용하여 의류 이미지 분석"""
     try:
         response = client.chat.completions.create(
-            model="gpt-4-vision-preview",
+            model="gpt-4-turbo-vision-preview",
             messages=[
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "text",
-                            "text": "이 의류 이미지를 분석해주세요. 다음 정보를 JSON 형식으로 제공해주세요: 의류 카테고리, 아이템 종류, 주요 색상, 디자인 요소, 스타일"
+                            "text": "이미지의 의류를 분석해주세요. 다음 형식의 JSON으로만 응답해주세요:\n{\n  \"카테고리\": \"상의/아우터/바지/원피스/스커트 중 하나\",\n  \"퍼스널컬러\": \"봄웜/여름쿨/가을웜/겨울쿨 중 하나\",\n  \"주요색상\": \"하나의 색상명\"\n}\n\n주의사항:\n1. 카테고리는 주어진 5개 중 하나만 선택\n2. 퍼스널컬러는 주어진 4개 중 하나만 선택\n3. 주요색상은 하나의 색상만 선택\n4. 다른 설명이나 추가 정보는 포함하지 마세요"
                         },
                         {
                             "type": "image_url",
@@ -208,7 +208,7 @@ async def analyze_fashion_upload(file: UploadFile = File(...)):
         
         # GPT Vision API로 분석
         response = client.chat.completions.create(
-            model="gpt-4-turbo",
+            model="gpt-4-turbo-vision-preview",
             messages=[
                 {
                     "role": "user",
@@ -352,7 +352,7 @@ async def analyze_fashion_url(image_url_input: ImageUrlInput):
         
         # GPT Vision API로 분석
         response = client.chat.completions.create(
-            model="gpt-4-vision-preview",
+            model="gpt-4-turbo-vision-preview",
             messages=[
                 {
                     "role": "user",
