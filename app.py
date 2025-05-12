@@ -202,7 +202,7 @@ async def analyze_fashion_url(image_url_input: ImageUrlInput):
         )
         
         # 응답 파싱
-        content = response.choices[0].message.content
+        content = response.output_text
         
         return {"result": content}
         
