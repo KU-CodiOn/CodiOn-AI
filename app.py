@@ -147,7 +147,7 @@ async def analyze_fashion(image_url: str) -> dict:
     """GPT Vision API를 사용하여 의류 이미지 분석"""
     try:
         response = client.chat.completions.create(
-            model="gpt-4-turbo-vision-preview",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",
