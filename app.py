@@ -301,8 +301,11 @@ async def analyze_personal_color_url(image_url_input: ImageUrlInput):
     - 퍼스널컬러 유형, 설명, 정확도
     """
     try:
+        # URL을 문자열로 변환
+        image_url_str = str(image_url_input.image_url)
+        
         # URL에서 이미지 다운로드
-        response = requests.get(image_url_input.image_url)
+        response = requests.get(image_url_str)
         if response.status_code != 200:
             raise HTTPException(status_code=400, detail="이미지를 다운로드할 수 없습니다.")
         
@@ -344,6 +347,9 @@ async def analyze_fashion_url(image_url_input: ImageUrlInput):
     - 의류 카테고리, 퍼스널컬러, 주요 색상 정보
     """
     try:
+        # URL을 문자열로 변환
+        image_url_str = str(image_url_input.image_url)
+        
         # GPT Vision API로 분석
         response = client.chat.completions.create(
             model="gpt-4-vision-preview",
@@ -358,7 +364,7 @@ async def analyze_fashion_url(image_url_input: ImageUrlInput):
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": image_url_input.image_url
+                                "url": image_url_str
                             }
                         }
                     ]
@@ -367,8 +373,9 @@ async def analyze_fashion_url(image_url_input: ImageUrlInput):
             max_tokens=300
         )
         
-        # 분석 결과 반환
-        return {"result": response.choices[0].message.content}
+        # 응답 내용을 문자열로 변환하여 반환
+        content = response.choices[0].message.content
+        return {"result": content}
         
     except Exception as e:
         error_detail = str(e)
