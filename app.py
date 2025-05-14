@@ -177,7 +177,7 @@ async def analyze_fashion_url(image_url_input: ImageUrlInput):
     - **image_url_input**: 분석할 이미지의 URL
     
     **반환값**:
-    - 의류 카테고리, 퍼스널컬러, 주요 색상 정보
+    - 의류 카테고리(TOP/OUTER/BOTTOM/DRESS/SKIRT), 퍼스널컬러(SPRING/SUMMER/AUTUMN/WINTER), 주요 색상 정보
     """
     try:
         # URL을 문자열로 변환
@@ -191,7 +191,19 @@ async def analyze_fashion_url(image_url_input: ImageUrlInput):
                 "content": [
                     {
                         "type": "input_text",
-                        "text": "이미지의 의류를 분석해주세요. 다음 형식의 JSON으로만 응답해주세요:\n{\n  \"카테고리\": \"상의/아우터/바지/원피스/스커트 중 하나\",\n  \"퍼스널컬러\": \"봄웜/여름쿨/가을웜/겨울쿨 중 하나\",\n  \"주요색상\": \"하나의 색상명\"\n}\n\n주의사항:\n1. 카테고리는 주어진 5개 중 하나만 선택\n2. 퍼스널컬러는 주어진 4개 중 하나만 선택\n3. 주요색상은 하나의 색상만 선택\n4. 다른 설명이나 추가 정보는 포함하지 마세요"
+                        "text": """Analyze this clothing image and respond ONLY with a JSON in the following format:
+{
+  "category": "[ONE OF: TOP, OUTER, BOTTOM, DRESS, SKIRT]",
+  "personalColor": "[ONE OF: SPRING, SUMMER, AUTUMN, WINTER]",
+  "color": "[MAIN COLOR NAME IN ENGLISH]"
+}
+
+Important:
+1. category MUST be one of these exact values: TOP, OUTER, BOTTOM, DRESS, SKIRT
+2. personalColor MUST be one of these exact values: SPRING, SUMMER, AUTUMN, WINTER
+3. color should be a single main color name in English
+4. Respond in English only
+5. Do not include any additional text or explanations"""
                     },
                     {
                         "type": "input_image",
