@@ -193,19 +193,49 @@ async def analyze_fashion_url(image_url_input: ImageUrlInput):
                         "type": "input_text",
                         "text": """Analyze this clothing image and respond ONLY with a JSON in the following format:
 {
-  "category": "CATEGORY_VALUE",
+  "main_category": "MAIN_CATEGORY_VALUE",
+  "sub_category": "SUB_CATEGORY_VALUE",
   "personalColor": "PERSONALCOLOR_VALUE",
   "color": "COLOR_NAME"
 }
 
 STRICT REQUIREMENTS:
-1. category MUST be EXACTLY ONE of these values (no variations allowed): TOP, OUTER, BOTTOM, DRESS, SKIRT
-2. personalColor MUST be EXACTLY ONE of these values (no variations allowed): SPRING, SUMMER, AUTUMN, WINTER
-3. color should be a single main color name in English (e.g., Black, White, Red, Blue, etc.)
-4. Response must be in ENGLISH only
-5. Return ONLY the JSON with no additional text, explanations, or formatting
-6. Do not use any quotes or brackets inside the value strings
-7. Ensure strict adherence to the ENUM values for category and personalColor"""
+1. main_category MUST be EXACTLY ONE of these values (no variations allowed):
+   - ALL (전체)
+   - TOP (상의)
+   - OUTER (아우터)
+   - BOTTOM (바지)
+   - DRESS (원피스/스커트)
+
+2. sub_category MUST be EXACTLY ONE of these values based on main_category:
+   For TOP:
+   - SHORT_SLEEVE (반팔)
+   - LONG_SLEEVE (긴팔)
+   
+   For OUTER:
+   - WINDBREAKER (바람막이)
+   - CARDIGAN (가디건)
+   - JACKET (재킷)
+   - PADDING (패딩)
+   
+   For BOTTOM:
+   - SHORTS (반바지)
+   - LONG_PANTS (긴바지)
+   
+   For DRESS:
+   - MINI (미니 기장)
+   - MIDI (미디 기장)
+   - LONG (롱 기장)
+   
+   For ALL:
+   - NONE (서브 카테고리 없음)
+
+3. personalColor MUST be EXACTLY ONE of these values (no variations allowed): SPRING, SUMMER, AUTUMN, WINTER
+4. color should be a single main color name in English (e.g., Black, White, Red, Blue, etc.)
+5. Response must be in ENGLISH only
+6. Return ONLY the JSON with no additional text, explanations, or formatting
+7. Do not use any quotes or brackets inside the value strings
+8. Ensure strict adherence to the ENUM values for main_category, sub_category, and personalColor"""
                     },
                     {
                         "type": "input_image",
