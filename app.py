@@ -193,17 +193,19 @@ async def analyze_fashion_url(image_url_input: ImageUrlInput):
                         "type": "input_text",
                         "text": """Analyze this clothing image and respond ONLY with a JSON in the following format:
 {
-  "category": "[ONE OF: TOP, OUTER, BOTTOM, DRESS, SKIRT]",
-  "personalColor": "[ONE OF: SPRING, SUMMER, AUTUMN, WINTER]",
-  "color": "[MAIN COLOR NAME IN ENGLISH]"
+  "category": "CATEGORY_VALUE",
+  "personalColor": "PERSONALCOLOR_VALUE",
+  "color": "COLOR_NAME"
 }
 
-Important:
-1. category MUST be one of these exact values: TOP, OUTER, BOTTOM, DRESS, SKIRT
-2. personalColor MUST be one of these exact values: SPRING, SUMMER, AUTUMN, WINTER
-3. color should be a single main color name in English
-4. Respond in English only
-5. Do not include any additional text or explanations"""
+STRICT REQUIREMENTS:
+1. category MUST be EXACTLY ONE of these values (no variations allowed): TOP, OUTER, BOTTOM, DRESS, SKIRT
+2. personalColor MUST be EXACTLY ONE of these values (no variations allowed): SPRING, SUMMER, AUTUMN, WINTER
+3. color should be a single main color name in English (e.g., Black, White, Red, Blue, etc.)
+4. Response must be in ENGLISH only
+5. Return ONLY the JSON with no additional text, explanations, or formatting
+6. Do not use any quotes or brackets inside the value strings
+7. Ensure strict adherence to the ENUM values for category and personalColor"""
                     },
                     {
                         "type": "input_image",
